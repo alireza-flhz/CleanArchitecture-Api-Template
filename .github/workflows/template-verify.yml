@@ -281,6 +281,16 @@ jobs:
         working-directory: out
         run: bash ../.github/scripts/verify-scaffolded-tree.sh '${{ matrix.name }}'
 
+      # Records the exact filename-vs-solution-reference spelling for names that are not
+      # valid C# identifiers, where templating renames files with the raw name but rewrites
+      # solution contents with the safe one.
+      - name: What was actually generated
+        working-directory: out
+        run: |
+          find . -name '*.csproj' -o -name '*.sln' | sort
+          echo "--- solution references ---"
+          grep -o '[^"]*\.csproj' *.sln | sort -u
+
       - name: Build
         working-directory: out
         run: dotnet build '${{ matrix.name }}.sln' --configuration Release

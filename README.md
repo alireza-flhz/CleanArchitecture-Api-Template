@@ -24,6 +24,13 @@ dotnet run --project src/Api
 Everything — namespaces, project files, the solution — is renamed to the name
 you pass to `-n`. No find-and-replace needed.
 
+> **Pick a name that is a valid C# identifier.** Dots are fine (`Acme.Store`,
+> `Contoso.Widgets.Api`), and so are digits after the first character. A name
+> containing a hyphen (`my-api`) scaffolds but will **not** build: the solution
+> file ends up referencing `my_api.*.csproj` while the project files on disk are
+> named after the raw name, so `dotnet build` fails with MSB3202. Use
+> `MyApi` or `My.Api` instead.
+
 You can also just clone this repo and run it directly:
 
 ```bash
