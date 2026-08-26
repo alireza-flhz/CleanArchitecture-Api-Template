@@ -11,6 +11,18 @@ set -uo pipefail
 name="${1:?usage: verify-scaffolded-tree.sh <ProjectName>}"
 fail=0
 
+# .NET templating derives a namespace-safe variant for names that are not valid C#
+# identifiers (my-api -> my_api), so both spellings legitimately appear in the output.
+safe_name=$(printf '%s' "$name" | sed 's/[^A-Za-z0-9_.]/_/g')
+
+# True when the argument still mentions the template's own name once every occurrence of
+# the chosen name is removed - a chosen name may legitimately contain it (BaseRepositoryClone).
+has_leftover() {
+  local stripped="${1//$name/}"
+  stripped="${stripped//$safe_name/}"
+  case "$stripped" in *BaseRepository*) return 0 ;; *) return 1 ;; esac
+}
+
 check() {
   if [ "$1" -eq 0 ]; then
     echo "  PASS  $2"
@@ -24,19 +36,23 @@ echo "== Verifying scaffolded tree for '$name' in $(pwd)"
 
 # 1. sourceName substitution must be total: not one occurrence of the template's own name
 #    may survive, in file contents or in any path.
-leftover_content=$(grep -rIl "BaseRepository" . 2>/dev/null || true)
+leftover_content=$(grep -rIl "BaseRepository" . 2>/dev/null | while read -r f; do
+  has_leftover "$(cat "$f")" && echo "$f"
+done)
 [ -z "$leftover_content" ]
 check $? "no file contains the string 'BaseRepository'"
 [ -n "$leftover_content" ] && echo "$leftover_content" | sed 's/^/        /'
 
-leftover_paths=$(find . -name "*BaseRepository*" 2>/dev/null || true)
+leftover_paths=$(find . -name "*BaseRepository*" 2>/dev/null | while read -r p; do
+  has_leftover "$p" && echo "$p"
+done)
 [ -z "$leftover_paths" ]
 check $? "no path contains 'BaseRepository'"
 [ -n "$leftover_paths" ] && echo "$leftover_paths" | sed 's/^/        /'
 
 # 2. The new name must actually be present - guards against a substitution that
 #    deleted rather than replaced.
-grep -rIq "$name" . 2>/dev/null
+grep -rIqE "$name|$safe_name" . 2>/dev/null
 check $? "the scaffolded name '$name' appears in the tree"
 
 # 3. Solution wiring: 8 projects, every one renamed.
@@ -48,7 +64,7 @@ if [ -f "$name.sln" ]; then
   [ "$projects" -eq 8 ]
   check $? "solution lists 8 projects (found $projects)"
 
-  unrenamed=$(dotnet sln "$name.sln" list | grep '\.csproj' | grep -vc "$name" || true)
+  unrenamed=$(dotnet sln "$name.sln" list | grep '\.csproj' | grep -vcE "$name|$safe_name" || true)
   [ "$unrenamed" -eq 0 ]
   check $? "every project in the solution is renamed (found $unrenamed unrenamed)"
 fi

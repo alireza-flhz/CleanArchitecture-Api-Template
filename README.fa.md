@@ -87,7 +87,7 @@ dotnet user-secrets set Jwt:SigningKey "<at least 32 bytes>" --project src/Api
 ثبت‌نام و ورود بخشی از خود قالب هستند — نمونهٔ آزمایشی نیستند که بعداً حذفشان
 کنید.
 
-**ثبت‌نام** — `POST /api/v1/auth/register`
+**ثبت‌نام** — `POST /api/v1/auth/register` ← **۲۰۱ Created**
 
 <div dir="ltr">
 
@@ -100,7 +100,7 @@ curl -X POST http://localhost:5000/api/v1/auth/register \
 
 </div>
 
-**ورود** — `POST /api/v1/auth/login` (همان بدنه، همان ساختار پاسخ).
+**ورود** — `POST /api/v1/auth/login` ← **۲۰۰ OK** (همان بدنه، همان ساختار پاسخ).
 
 سپس توکن را روی هر درخواست محافظت‌شده بفرستید:
 

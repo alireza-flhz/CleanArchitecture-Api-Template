@@ -70,7 +70,7 @@ Environment variables work too, if you prefer them over user-secrets.
 
 Register and login are part of the template — not a sample to delete.
 
-**Register** — `POST /api/v1/auth/register`
+**Register** — `POST /api/v1/auth/register` → **201 Created**
 
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/register \
@@ -79,7 +79,7 @@ curl -X POST http://localhost:5000/api/v1/auth/register \
 # => { "userId": 1, "email": "me@example.com", "token": "...", "expiresAt": "..." }
 ```
 
-**Login** — `POST /api/v1/auth/login` (same body, same response shape).
+**Login** — `POST /api/v1/auth/login` → **200 OK** (same body, same response shape).
 
 Then send the token on any protected request:
 

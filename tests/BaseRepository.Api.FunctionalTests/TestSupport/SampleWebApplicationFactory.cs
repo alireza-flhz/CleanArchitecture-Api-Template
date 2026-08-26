@@ -65,10 +65,20 @@ public class SampleWebApplicationFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing)
+        if (!disposing)
+            return;
+
+        _connection.Dispose();
+
+        // See RealAppWebApplicationFactory.Dispose - pooled SQLite handles keep the file open
+        // on Windows, where Delete would otherwise throw and fail the test class.
+        SqliteConnection.ClearAllPools();
+        try
         {
-            _connection.Dispose();
             File.Delete(_appDbPath);
+        }
+        catch (IOException)
+        {
         }
     }
 }

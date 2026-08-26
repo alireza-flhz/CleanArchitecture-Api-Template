@@ -64,7 +64,7 @@ echo
 echo "== Register / login"
 email="user-$RANDOM@example.com"
 code=$(req POST /api/v1/auth/register "{\"email\":\"$email\",\"password\":\"correct-horse-battery\"}")
-status_is 200 "$code" "register a new user"
+status_is 201 "$code" "register a new user"
 jq -e '.token != "" and .userId > 0 and (.expiresAt | length) > 0' "$body" >/dev/null
 check $? "register returns userId, token and expiresAt"
 token=$(jq -r '.token' "$body")
@@ -78,11 +78,12 @@ login_token=$(jq -r '.token' "$body")
 
 code=$(req POST /api/v1/auth/login "{\"email\":\"$email\",\"password\":\"wrong-password\"}")
 status_is 401 "$code" "login with a wrong password"
-wrong_pw_body=$(cat "$body")
+# ProblemDetails carries a per-request traceId, so compare everything else.
+wrong_pw_body=$(jq -S 'del(.traceId, .instance)' "$body")
 
 code=$(req POST /api/v1/auth/login '{"email":"nobody-here@example.com","password":"correct-horse-battery"}')
 status_is 401 "$code" "login with an unknown email"
-[ "$(cat "$body")" = "$wrong_pw_body" ]
+[ "$(jq -S 'del(.traceId, .instance)' "$body")" = "$wrong_pw_body" ]
 check $? "wrong password and unknown email are indistinguishable (no user enumeration)"
 
 echo
