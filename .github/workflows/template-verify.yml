@@ -1,0 +1,286 @@
+name: Template Verification
+
+# Everything a consumer of the published NuGet package actually touches: the package itself,
+# the scaffolded source tree, and the running API. Template-repo only - template.json excludes
+# this file (and .github/scripts) from scaffolded projects, which have no template-pack/.
+on:
+  push:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Pack
+        run: dotnet pack template-pack/BaseRepository.Template.csproj --configuration Release --output ${{ runner.temp }}/nupkg
+
+      - name: Verify package contents
+        run: |
+          set -euo pipefail
+          pkg=$(ls ${{ runner.temp }}/nupkg/*.nupkg)
+          unzip -l "$pkg"
+          # nuget.org renders the root README as the package page; the template is unusable
+          # without template.json and the source tree.
+          unzip -l "$pkg" | grep -q " README.md$"
+          unzip -l "$pkg" | grep -q "content/.template.config/template.json"
+          unzip -l "$pkg" | grep -q "content/src/Api/Program.cs"
+          unzip -l "$pkg" | grep -q "content/BaseRepository.sln"
+          # Build leftovers, the dev database, and the template's own packaging project
+          # must never ship.
+          ! unzip -l "$pkg" | grep -qE "content/.*/(bin|obj)/|\.db$|content/template-pack/"
+
+      - name: Verify package metadata
+        run: |
+          set -euo pipefail
+          pkg=$(ls ${{ runner.temp }}/nupkg/*.nupkg)
+          unzip -p "$pkg" '*.nuspec' > nuspec.xml
+          cat nuspec.xml
+          # nuget.org rejects or degrades a listing missing any of these.
+          grep -q "<packageTypes>" nuspec.xml
+          grep -q 'name="Template"' nuspec.xml
+          grep -q "<license type=\"expression\">MIT</license>" nuspec.xml
+          grep -q "<readme>README.md</readme>" nuspec.xml
+          grep -q "<projectUrl>" nuspec.xml
+          grep -q "<repository " nuspec.xml
+          grep -q "<tags>" nuspec.xml
+          # A template package must not carry library dependencies.
+          ! grep -q "<dependency " nuspec.xml
+
+      - name: Verify the packed README renders standalone on nuget.org
+        run: |
+          set -euo pipefail
+          pkg=$(ls ${{ runner.temp }}/nupkg/*.nupkg)
+          unzip -p "$pkg" README.md > packed-readme.md
+          # nuget.org does not resolve repo-relative links, so every link must be absolute.
+          relative=$(grep -oE '\]\([^)#][^)]*\)' packed-readme.md | grep -vE '\]\((https?|mailto):' || true)
+          if [ -n "$relative" ]; then echo "Relative links in the packed README:"; echo "$relative"; exit 1; fi
+          echo "All links absolute."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: template-nupkg
+          path: ${{ runner.temp }}/nupkg/*.nupkg
+
+  scaffold:
+    name: Scaffold (${{ matrix.name }} on ${{ matrix.os }})
+    needs: package
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # A dotted name, a single-word name, and a name that contains the template's own
+          # words - the last one would break a naive string replacement.
+          - { os: ubuntu-latest, name: Acme.Store }
+          - { os: ubuntu-latest, name: Shop }
+          - { os: ubuntu-latest, name: BaseRepositoryClone }
+          # The template is cross-platform or it is not; SQLite and path handling differ.
+          - { os: windows-latest, name: Acme.Store }
+          - { os: macos-latest, name: Acme.Store }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: ${{ runner.temp }}/nupkg
+
+      - name: Install the template from the .nupkg
+        shell: bash
+        run: dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
+
+      - name: The template is listed by dotnet new
+        shell: bash
+        run: dotnet new list | grep -q basecrud
+
+      - name: Scaffold
+        shell: bash
+        run: dotnet new basecrud -n ${{ matrix.name }} -o ${{ runner.temp }}/out
+
+      - name: Verify the scaffolded tree
+        shell: bash
+        working-directory: ${{ runner.temp }}/out
+        run: bash $GITHUB_WORKSPACE/.github/scripts/verify-scaffolded-tree.sh ${{ matrix.name }}
+
+      - name: Build (no warnings allowed)
+        shell: bash
+        working-directory: ${{ runner.temp }}/out
+        run: |
+          set -euo pipefail
+          dotnet build ${{ matrix.name }}.sln --configuration Release 2>&1 | tee build.log
+          grep -q "0 Warning(s)" build.log
+
+      - name: Test
+        shell: bash
+        working-directory: ${{ runner.temp }}/out
+        run: dotnet test ${{ matrix.name }}.sln --no-build --configuration Release
+
+      - name: Scaffolding twice in a row works
+        shell: bash
+        run: |
+          dotnet new basecrud -n SecondPass -o ${{ runner.temp }}/out2
+          test -f ${{ runner.temp }}/out2/SecondPass.sln
+
+      - name: Uninstalling the template works
+        shell: bash
+        run: |
+          dotnet new uninstall BaseRepository.Template
+          ! dotnet new list | grep -q basecrud
+
+  runtime:
+    name: Runtime (README quick start, verbatim)
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: ${{ runner.temp }}/nupkg
+
+      - name: Install and scaffold
+        run: |
+          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
+          dotnet new basecrud -n Acme.Store -o ${{ runner.temp }}/app
+
+      # Exactly the commands the README's Configuration section gives a consumer. If this
+      # does not produce a working signing key, the README is wrong.
+      - name: Configure the signing key the way the README says to
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          dotnet user-secrets init --project src/Api
+          dotnet user-secrets set Jwt:SigningKey "$(head -c 48 /dev/urandom | base64)" --project src/Api
+
+      - name: Run it (dotnet run, no extra flags - as documented)
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          nohup dotnet run --project src/Api > ${{ runner.temp }}/app.log 2>&1 &
+          echo $! > ${{ runner.temp }}/app.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:5000/health >/dev/null 2>&1; then
+              echo "Up after ${i}s on the documented port 5000"; exit 0
+            fi
+            sleep 1
+          done
+          echo "The app never answered on http://localhost:5000 - the port the README tells users to curl"
+          cat ${{ runner.temp }}/app.log
+          exit 1
+
+      - name: Exercise every documented endpoint
+        run: bash .github/scripts/verify-scaffolded-api.sh http://localhost:5000 Acme.Store
+
+      - name: App log
+        if: always()
+        run: cat ${{ runner.temp }}/app.log || true
+
+      - name: Stop
+        if: always()
+        run: kill "$(cat ${{ runner.temp }}/app.pid)" 2>/dev/null || true
+
+  runtime-unconfigured:
+    name: Runtime (no configuration at all)
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: ${{ runner.temp }}/nupkg
+
+      - name: Install and scaffold
+        run: |
+          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
+          dotnet new basecrud -n Acme.Store -o ${{ runner.temp }}/app
+
+      - name: Run with no signing key configured
+        working-directory: ${{ runner.temp }}/app
+        run: |
+          nohup dotnet run --project src/Api > ${{ runner.temp }}/app.log 2>&1 &
+          echo $! > ${{ runner.temp }}/app.pid
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:5000/health >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          cat ${{ runner.temp }}/app.log; exit 1
+
+      # README: "Health/root/OpenAPI/Scalar stay open with no config at all; protected
+      # endpoints fail clearly until you configure a key."
+      - name: Public endpoints work unconfigured; protected ones fail cleanly
+        run: |
+          set -euo pipefail
+          for path in /health / /openapi/v1.json /scalar/v1; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000$path")
+            echo "GET $path -> $code"
+            [ "$code" = "200" ]
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/v1/todo-items)
+          echo "GET /api/v1/todo-items (no key configured) -> $code"
+          # A clear 401, not a 500: an unconfigured key is a configuration state, not a crash.
+          [ "$code" = "401" ]
+
+      - name: App log
+        if: always()
+        run: cat ${{ runner.temp }}/app.log || true
+
+      - name: Stop
+        if: always()
+        run: kill "$(cat ${{ runner.temp }}/app.pid)" 2>/dev/null || true
+
+  edge-case-names:
+    name: Edge-case names (exploratory)
+    needs: package
+    runs-on: ubuntu-latest
+    # Reported, not gating: these probe how the template behaves on names a consumer might
+    # plausibly type but that .NET templating does not sanitise.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ["my-api", "acme.store", "Api2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: ${{ runner.temp }}/nupkg
+
+      - name: Install and scaffold '${{ matrix.name }}'
+        run: |
+          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
+          dotnet new basecrud -n '${{ matrix.name }}' -o ${{ runner.temp }}/out
+
+      - name: Verify the scaffolded tree
+        working-directory: ${{ runner.temp }}/out
+        run: bash $GITHUB_WORKSPACE/.github/scripts/verify-scaffolded-tree.sh '${{ matrix.name }}'
+
+      - name: Build
+        working-directory: ${{ runner.temp }}/out
+        run: dotnet build '${{ matrix.name }}.sln' --configuration Release

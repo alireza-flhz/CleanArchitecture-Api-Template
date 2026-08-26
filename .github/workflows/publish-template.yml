@@ -58,8 +58,9 @@ jobs:
           # is not part of a scaffolded project - they must not reach consumers.
           ls "${RUNNER_TEMP}/publish-smoke-test/.github/workflows"
           [ ! -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/publish-template.yml" ]
-          [ ! -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/template-smoke-test.yml" ]
+          [ ! -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/template-verify.yml" ]
           [ -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/ci.yml" ]
+          [ ! -d "${RUNNER_TEMP}/publish-smoke-test/.github/scripts" ]
           dotnet build "${RUNNER_TEMP}/publish-smoke-test/PublishSmokeTest.sln" --configuration Release
           dotnet test "${RUNNER_TEMP}/publish-smoke-test/PublishSmokeTest.sln" --no-build --configuration Release
 
