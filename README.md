@@ -12,6 +12,12 @@ validation, OpenAPI docs, structured logging — already wired up and working.
 
 ## Quick start
 
+**Requires the .NET 10 SDK** (`dotnet --version` should print `10.*`). On an
+older SDK the template refuses to scaffold rather than leaving you with a
+project that cannot restore — if you see `NETSDK1045: The current .NET SDK does
+not support targeting .NET 10.0`, that is what happened. Get it from
+[dotnet.microsoft.com/download](https://dotnet.microsoft.com/download).
+
 Install the template from NuGet, scaffold a project under your own name, and
 run it:
 

@@ -283,6 +283,54 @@ jobs:
         working-directory: out
         run: dotnet build '${{ matrix.name }}.sln' --configuration Release
 
+  older-sdk-refusal:
+    name: Refuses an SDK that cannot build it
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: nupkg
+
+      # Reproduces what a consumer on an older SDK hits. Without the sdk-version
+      # constraint in template.json, scaffolding "succeeds" and then the post-action
+      # restore dies with a wall of NETSDK1045 on a half-created project. It must
+      # refuse up front instead, leaving nothing behind.
+      - name: Pin this directory to the .NET 9 SDK
+        run: |
+          set -uo pipefail
+          mkdir -p sdk9
+          cat > sdk9/global.json <<'JSON'
+          { "sdk": { "version": "9.0.100", "rollForward": "latestFeature" } }
+          JSON
+          cd sdk9 && dotnet --version
+
+      - name: Installing the template still works
+        working-directory: sdk9
+        run: dotnet new install "$(ls ../nupkg/*.nupkg | head -1)"
+
+      - name: Scaffolding is refused, and nothing is left behind
+        working-directory: sdk9
+        run: |
+          set -uo pipefail
+          if dotnet new basecrud -n Sdk9Test -o proj > out.log 2>&1; then
+            echo "Expected the template to refuse to run on the .NET 9 SDK, but it scaffolded:"
+            cat out.log
+            exit 1
+          fi
+          echo "--- what the consumer sees ---"
+          cat out.log
+          # The refusal must be about the SDK, not an incidental failure.
+          grep -qiE "sdk|constraint" out.log
+          # And it must not leave a broken project on disk.
+          [ ! -f proj/Sdk9Test.sln ]
+
   hyphenated-name-limitation:
     name: Known limitation (hyphenated name)
     needs: package

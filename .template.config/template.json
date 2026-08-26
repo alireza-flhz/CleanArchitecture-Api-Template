@@ -7,6 +7,12 @@
   "shortName": "basecrud",
   "sourceName": "BaseRepository",
   "preferNameDirectory": true,
+  "constraints": {
+    "sdk": {
+      "type": "sdk-version",
+      "args": "[10.0.100,)"
+    }
+  },
   "symbols": {
     "skipRestore": {
       "type": "parameter",

@@ -15,6 +15,14 @@
 
 ## شروع سریع
 
+**به SDK دات‌نت ۱۰ نیاز دارد** (`dotnet --version` باید با `10.` شروع شود). روی
+SDK قدیمی‌تر، قالب از همان اول از ساختن پروژه خودداری می‌کند تا پروژه‌ای که
+restore نمی‌شود روی دستتان نماند — اگر خطای
+`NETSDK1045: The current .NET SDK does not support targeting .NET 10.0` را
+دیدید، دلیلش همین است. از
+[dotnet.microsoft.com/download](https://dotnet.microsoft.com/download)
+نصبش کنید.
+
 قالب را از NuGet نصب کنید، یک پروژه با نام دلخواه خودتان بسازید و اجرا کنید:
 
 <div dir="ltr">
