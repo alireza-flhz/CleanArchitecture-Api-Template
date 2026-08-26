@@ -39,10 +39,19 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, AuthResul
             PasswordHash = _passwordHasher.Hash(request.Password)
         };
 
+        // The token needs the identity the database assigns, so it can only be issued after
+        // the insert - and issuing it can fail (an unconfigured signing key, for one). Without
+        // a transaction that leaves a registered user who never received a token and whose
+        // email is now taken, with no way to log in. Commit only once the token exists;
+        // disposing an uncommitted transaction rolls the insert back.
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
         await _repository.AddAsync(user, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var (token, expiresAt) = _jwtTokenGenerator.GenerateToken(user);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new AuthResultDto
         {

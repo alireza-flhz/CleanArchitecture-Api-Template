@@ -226,7 +226,11 @@ in, remove it. Every one of its types carries a doc comment saying so.
 **Data access**
 
 - Generic `IRepository<TEntity, TKey>` with an EF Core implementation that
-  works with any `DbContext`, plus `IUnitOfWork` for explicit saves.
+  works with any `DbContext`, plus `IUnitOfWork` for explicit saves and
+  `IUnitOfWork.BeginTransactionAsync()` when several writes — or a write and
+  the work after it — have to succeed or fail together. Commit explicitly;
+  disposing an uncommitted transaction rolls it back, so `await using` is the
+  safe default.
 - Specification pattern for composing queries without leaking EF Core into
   Application code.
 - Opt-in `IAuditableEntity` (automatic timestamps) and `ISoftDelete` (deletes

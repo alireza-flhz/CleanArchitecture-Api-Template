@@ -272,7 +272,11 @@ include/مرتب‌سازی/صفحه‌بندی را بدون درگیر شدن 
 **دسترسی به داده**
 
 - `IRepository<TEntity, TKey>` جنریک با پیاده‌سازی EF Core که با هر `DbContext`
-  کار می‌کند، به‌همراه `IUnitOfWork` برای ذخیرهٔ صریح تغییرات.
+  کار می‌کند، به‌همراه `IUnitOfWork` برای ذخیرهٔ صریح تغییرات و
+  `IUnitOfWork.BeginTransactionAsync()` برای وقتی چند نوشتن — یا یک نوشتن و
+  کاری که بعدش می‌آید — باید با هم موفق یا با هم ناموفق شوند. commit را صریح
+  انجام دهید؛ dispose شدن یک transaction ای که commit نشده آن را rollback
+  می‌کند، پس `await using` انتخاب امن پیش‌فرض است.
 - الگوی Specification برای ساختن کوئری‌ها بدون نشت EF Core به کد لایهٔ
   Application.
 - `IAuditableEntity` (زمان‌های خودکار ایجاد/ویرایش) و `ISoftDelete` (حذف تبدیل
