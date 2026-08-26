@@ -251,16 +251,14 @@ jobs:
         run: kill "$(cat ${{ runner.temp }}/app.pid)" 2>/dev/null || true
 
   edge-case-names:
-    name: Edge-case names (exploratory)
+    name: Edge-case names (${{ matrix.name }})
     needs: package
     runs-on: ubuntu-latest
-    # Reported, not gating: these probe how the template behaves on names a consumer might
-    # plausibly type but that .NET templating does not sanitise.
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
-        name: ["my-api", "acme.store", "Api2"]
+        # Names that are unusual but still valid C# identifiers - these must work.
+        name: ["acme.store", "Api2"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -281,16 +279,54 @@ jobs:
         working-directory: out
         run: bash ../.github/scripts/verify-scaffolded-tree.sh '${{ matrix.name }}'
 
-      # Records the exact filename-vs-solution-reference spelling for names that are not
-      # valid C# identifiers, where templating renames files with the raw name but rewrites
-      # solution contents with the safe one.
-      - name: What was actually generated
-        working-directory: out
-        run: |
-          find . -name '*.csproj' -o -name '*.sln' | sort
-          echo "--- solution references ---"
-          grep -o '[^"]*\.csproj' *.sln | sort -u
-
       - name: Build
         working-directory: out
         run: dotnet build '${{ matrix.name }}.sln' --configuration Release
+
+  hyphenated-name-limitation:
+    name: Known limitation (hyphenated name)
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: template-nupkg
+          path: nupkg
+
+      - name: Scaffold 'my-api'
+        run: |
+          dotnet new install "$(ls nupkg/*.nupkg | head -1)"
+          dotnet new basecrud -n my-api -o out --skipRestore
+
+      # A name that is not a valid C# identifier scaffolds but cannot build: templating
+      # renames files with the raw name and rewrites solution contents with the safe one.
+      # Asserted rather than left as a permanently red job, so the suite stays meaningfully
+      # green - and so a future SDK that fixes this fails here and tells us to drop the
+      # caveat from the README.
+      - name: The documented mismatch is present
+        working-directory: out
+        run: |
+          set -uo pipefail
+          echo "--- files on disk ---"
+          find . -name '*.csproj' | sort
+          echo "--- solution references ---"
+          grep -o '[^"]*\.csproj' my-api.sln | sort -u
+
+          test -f src/Domain/my-api.Domain.csproj
+          grep -q 'my_api\.Domain\.csproj' my-api.sln
+
+      - name: And the build fails because of it
+        working-directory: out
+        run: |
+          set -uo pipefail
+          if dotnet build my-api.sln --configuration Release > build.log 2>&1; then
+            echo "Hyphenated names now build - the README caveat can be removed."
+            exit 1
+          fi
+          grep -q "MSB3202" build.log
+          echo "Confirmed: MSB3202, as documented in the README."
