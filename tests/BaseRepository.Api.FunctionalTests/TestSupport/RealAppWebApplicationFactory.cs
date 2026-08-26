@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 
 namespace BaseRepository.Api.FunctionalTests.TestSupport;
@@ -34,7 +35,20 @@ public class RealAppWebApplicationFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing)
+        if (!disposing)
+            return;
+
+        // Microsoft.Data.Sqlite pools connections, so the file stays open after the host is
+        // disposed. Unix happily deletes an open file; Windows throws IOException and fails
+        // the whole test class. Drop the pooled handles first, and never let cleanup itself
+        // fail a run - a leftover temp file is harmless.
+        SqliteConnection.ClearAllPools();
+        try
+        {
             File.Delete(_appDbPath);
+        }
+        catch (IOException)
+        {
+        }
     }
 }

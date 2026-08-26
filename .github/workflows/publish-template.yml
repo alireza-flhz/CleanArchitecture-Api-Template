@@ -9,6 +9,11 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pack and verify only - do not push to NuGet.org"
+        type: boolean
+        default: true
 
 env:
   DOTNET_NOLOGO: true
@@ -29,16 +34,45 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # A published NuGet version is immutable - it can be unlisted but never replaced. So
+      # fail loudly here rather than shipping a package whose version isn't the tag's.
+      - name: Verify PackageVersion matches the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version=$(grep -oP '(?<=<PackageVersion>)[^<]+' template-pack/BaseRepository.Template.csproj)
+          echo "tag=$tag_version  csproj=$pkg_version"
+          [ "$tag_version" = "$pkg_version" ]
+
       - name: Pack the template
         run: dotnet pack template-pack/BaseRepository.Template.csproj --configuration Release --output ./nupkg
 
+      # Same guard the CI smoke test runs, repeated on the exact artifact being pushed.
+      - name: Scaffold from the packed template
+        run: |
+          set -euo pipefail
+          dotnet new install ./nupkg/BaseRepository.Template.*.nupkg
+          dotnet new basecrud -n PublishSmokeTest -o "${RUNNER_TEMP}/publish-smoke-test"
+          # This repo's own packaging/publishing workflows reference template-pack/, which
+          # is not part of a scaffolded project - they must not reach consumers.
+          ls "${RUNNER_TEMP}/publish-smoke-test/.github/workflows"
+          [ ! -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/publish-template.yml" ]
+          [ ! -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/template-verify.yml" ]
+          [ -e "${RUNNER_TEMP}/publish-smoke-test/.github/workflows/ci.yml" ]
+          [ ! -d "${RUNNER_TEMP}/publish-smoke-test/.github/scripts" ]
+          dotnet build "${RUNNER_TEMP}/publish-smoke-test/PublishSmokeTest.sln" --configuration Release
+          dotnet test "${RUNNER_TEMP}/publish-smoke-test/PublishSmokeTest.sln" --no-build --configuration Release
+
       - name: NuGet login (OIDC -> temporary API key)
         id: login
+        if: inputs.dry_run != true
         uses: NuGet/login@v1
         with:
           user: alireza-flhz
 
       - name: Push to NuGet.org
+        if: inputs.dry_run != true
         run: >
           dotnet nuget push "./nupkg/*.nupkg"
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"

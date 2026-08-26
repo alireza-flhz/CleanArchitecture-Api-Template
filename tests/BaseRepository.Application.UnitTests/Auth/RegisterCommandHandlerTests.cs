@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using BaseRepository.Application.Auth;
@@ -34,6 +35,34 @@ public class RegisterCommandHandlerTests
         Assert.Equal("new@example.com", stored!.Email);
         Assert.NotEqual("correct-horse", stored.PasswordHash);
         Assert.True(_passwordHasher.Verify("correct-horse", stored.PasswordHash));
+    }
+
+    [Fact]
+    public async Task Handle_WhenItSucceeds_CommitsTheTransaction()
+    {
+        var handler = CreateHandler();
+
+        await handler.Handle(new RegisterCommand { Email = "ok@example.com", Password = "correct-horse" }, CancellationToken.None);
+
+        Assert.NotNull(_unitOfWork.LastTransaction);
+        Assert.True(_unitOfWork.LastTransaction!.Committed);
+    }
+
+    [Fact]
+    public async Task Handle_WhenIssuingTheTokenFails_DoesNotCommitTheTransaction()
+    {
+        // The real generator throws exactly this when Jwt:SigningKey is not configured. The
+        // user row is inserted before the token can be issued, so without a rollback the email
+        // would be taken by an account that can never log in.
+        _jwtTokenGenerator.ThrowOnGenerate = new InvalidOperationException("Jwt:SigningKey is not configured.");
+        var handler = CreateHandler();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(new RegisterCommand { Email = "doomed@example.com", Password = "correct-horse" }, CancellationToken.None));
+
+        Assert.NotNull(_unitOfWork.LastTransaction);
+        Assert.False(_unitOfWork.LastTransaction!.Committed);
+        Assert.True(_unitOfWork.LastTransaction.Disposed);
     }
 
     [Fact]

@@ -28,6 +28,9 @@
             "**/*.db-shm",
             "**/*.db-wal",
             "template-pack/**",
+            ".github/workflows/publish-template.yml",
+            ".github/workflows/template-verify.yml",
+            ".github/scripts/**",
             ".template.config/localize/**",
             "*.nupkg"
           ]
