@@ -12,13 +12,25 @@ validation, OpenAPI docs, structured logging — already wired up and working.
 
 ## Quick start
 
-Install the template, scaffold a project under your own name, and run it:
+Install the template from NuGet, scaffold a project under your own name, and
+run it:
 
 ```bash
-dotnet new install <path-to-this-repo-or-its-.nupkg>
+dotnet new install BaseRepository.Template::1.0.0-preview.1
 dotnet new basecrud -n Acme.Store
 cd Acme.Store
 dotnet run --project src/Api
+```
+
+[![NuGet](https://img.shields.io/nuget/vpre/BaseRepository.Template.svg)](https://www.nuget.org/packages/BaseRepository.Template)
+
+The package is currently a prerelease, so the version is pinned explicitly above
+— `dotnet new install BaseRepository.Template` without a version only resolves
+stable releases. You can also install from a local clone or a `.nupkg` you built
+yourself:
+
+```bash
+dotnet new install <path-to-this-repo-or-its-.nupkg>
 ```
 
 Everything — namespaces, project files, the solution — is renamed to the name

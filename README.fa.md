@@ -15,15 +15,34 @@
 
 ## شروع سریع
 
-قالب را نصب کنید، یک پروژه با نام دلخواه خودتان بسازید و اجرا کنید:
+قالب را از NuGet نصب کنید، یک پروژه با نام دلخواه خودتان بسازید و اجرا کنید:
+
+<div dir="ltr">
+
+```bash
+dotnet new install BaseRepository.Template::1.0.0-preview.1
+dotnet new basecrud -n Acme.Store
+cd Acme.Store
+dotnet run --project src/Api
+```
+
+</div>
+
+<div dir="ltr">
+
+[![NuGet](https://img.shields.io/nuget/vpre/BaseRepository.Template.svg)](https://www.nuget.org/packages/BaseRepository.Template)
+
+</div>
+
+این پکیج فعلاً prerelease است، برای همین شمارهٔ نسخه صریح نوشته شده — اگر
+`dotnet new install BaseRepository.Template` را بدون نسخه بزنید فقط نسخه‌های
+پایدار را پیدا می‌کند. می‌توانید از روی کلون محلی یا یک `.nupkg` که خودتان
+ساخته‌اید هم نصب کنید:
 
 <div dir="ltr">
 
 ```bash
 dotnet new install <path-to-this-repo-or-its-.nupkg>
-dotnet new basecrud -n Acme.Store
-cd Acme.Store
-dotnet run --project src/Api
 ```
 
 </div>
