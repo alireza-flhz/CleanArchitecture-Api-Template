@@ -9,7 +9,7 @@
 جنریک، احراز هویت، صفحه‌بندی، اعتبارسنجی، مستندات OpenAPI و لاگ ساخت‌یافته —
 از قبل نوشته و وصل شده است.
 
-📄 **[English version of this guide](README.md)**
+📄 **[English version of this guide](https://github.com/alireza-flhz/CleanArchitecture-Api-Template/blob/master/README.md)**
 
 ---
 
@@ -367,6 +367,6 @@ tests/
 
 ## لایسنس
 
-MIT — فایل [LICENSE](LICENSE) را ببینید.
+MIT — فایل [LICENSE](https://github.com/alireza-flhz/CleanArchitecture-Api-Template/blob/master/LICENSE) را ببینید.
 
 </div>

@@ -6,7 +6,7 @@ A Clean Architecture starter template for .NET 10 APIs. Everything most
 projects need on day one — layering, generic CRUD, authentication, paging,
 validation, OpenAPI docs, structured logging — already wired up and working.
 
-📄 **[نسخهٔ فارسی این راهنما](README.fa.md)**
+📄 **[نسخهٔ فارسی این راهنما](https://github.com/alireza-flhz/CleanArchitecture-Api-Template/blob/master/README.fa.md)**
 
 ---
 
@@ -308,4 +308,4 @@ tests/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/alireza-flhz/CleanArchitecture-Api-Template/blob/master/LICENSE).

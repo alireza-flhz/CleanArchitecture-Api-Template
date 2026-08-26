@@ -12,12 +12,19 @@
     <PackageProjectUrl>https://github.com/alireza-flhz/CleanArchitecture-Api-Template</PackageProjectUrl>
     <RepositoryUrl>https://github.com/alireza-flhz/CleanArchitecture-Api-Template</RepositoryUrl>
     <PackageTags>dotnet-new;templates;clean-architecture;cqrs;webapi;api;auth;jwt</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <IncludeContentInPack>true</IncludeContentInPack>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <ContentTargetFolders>content</ContentTargetFolders>
     <NoDefaultExcludes>true</NoDefaultExcludes>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Packed to the package root (not content/) so nuget.org renders it as the package
+         description page. The copy under content/ is the one a scaffolded project gets. -->
+    <None Include="../README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="../**/*" Exclude="../**/bin/**;../**/obj/**;../**/*.db;../**/*.db-shm;../**/*.db-wal;../.git/**;../template-pack/**;../*.nupkg">
