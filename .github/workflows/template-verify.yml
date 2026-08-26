@@ -98,11 +98,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: template-nupkg
-          path: ${{ runner.temp }}/nupkg
+          path: nupkg
 
       - name: Install the template from the .nupkg
         shell: bash
-        run: dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
+        run: dotnet new install "$(ls nupkg/*.nupkg | head -1)"
 
       - name: The template is listed by dotnet new
         shell: bash
@@ -110,31 +110,31 @@ jobs:
 
       - name: Scaffold
         shell: bash
-        run: dotnet new basecrud -n ${{ matrix.name }} -o ${{ runner.temp }}/out
+        run: dotnet new basecrud -n ${{ matrix.name }} -o out --skipRestore
 
       - name: Verify the scaffolded tree
         shell: bash
-        working-directory: ${{ runner.temp }}/out
-        run: bash $GITHUB_WORKSPACE/.github/scripts/verify-scaffolded-tree.sh ${{ matrix.name }}
+        working-directory: out
+        run: bash ../.github/scripts/verify-scaffolded-tree.sh ${{ matrix.name }}
 
       - name: Build (no warnings allowed)
         shell: bash
-        working-directory: ${{ runner.temp }}/out
+        working-directory: out
         run: |
-          set -euo pipefail
+          set -uo pipefail
           dotnet build ${{ matrix.name }}.sln --configuration Release 2>&1 | tee build.log
           grep -q "0 Warning(s)" build.log
 
       - name: Test
         shell: bash
-        working-directory: ${{ runner.temp }}/out
+        working-directory: out
         run: dotnet test ${{ matrix.name }}.sln --no-build --configuration Release
 
-      - name: Scaffolding twice in a row works
+      - name: Scaffolding twice in a row works (with the post-action restore)
         shell: bash
         run: |
-          dotnet new basecrud -n SecondPass -o ${{ runner.temp }}/out2
-          test -f ${{ runner.temp }}/out2/SecondPass.sln
+          dotnet new basecrud -n SecondPass -o out2
+          test -f out2/SecondPass.sln
 
       - name: Uninstalling the template works
         shell: bash
@@ -155,23 +155,23 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: template-nupkg
-          path: ${{ runner.temp }}/nupkg
+          path: nupkg
 
       - name: Install and scaffold
         run: |
-          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
-          dotnet new basecrud -n Acme.Store -o ${{ runner.temp }}/app
+          dotnet new install "$(ls nupkg/*.nupkg | head -1)"
+          dotnet new basecrud -n Acme.Store -o app
 
       # Exactly the commands the README's Configuration section gives a consumer. If this
       # does not produce a working signing key, the README is wrong.
       - name: Configure the signing key the way the README says to
-        working-directory: ${{ runner.temp }}/app
+        working-directory: app
         run: |
           dotnet user-secrets init --project src/Api
           dotnet user-secrets set Jwt:SigningKey "$(head -c 48 /dev/urandom | base64)" --project src/Api
 
       - name: Run it (dotnet run, no extra flags - as documented)
-        working-directory: ${{ runner.temp }}/app
+        working-directory: app
         run: |
           nohup dotnet run --project src/Api > ${{ runner.temp }}/app.log 2>&1 &
           echo $! > ${{ runner.temp }}/app.pid
@@ -209,15 +209,15 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: template-nupkg
-          path: ${{ runner.temp }}/nupkg
+          path: nupkg
 
       - name: Install and scaffold
         run: |
-          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
-          dotnet new basecrud -n Acme.Store -o ${{ runner.temp }}/app
+          dotnet new install "$(ls nupkg/*.nupkg | head -1)"
+          dotnet new basecrud -n Acme.Store -o app
 
       - name: Run with no signing key configured
-        working-directory: ${{ runner.temp }}/app
+        working-directory: app
         run: |
           nohup dotnet run --project src/Api > ${{ runner.temp }}/app.log 2>&1 &
           echo $! > ${{ runner.temp }}/app.pid
@@ -270,17 +270,17 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: template-nupkg
-          path: ${{ runner.temp }}/nupkg
+          path: nupkg
 
       - name: Install and scaffold '${{ matrix.name }}'
         run: |
-          dotnet new install ${{ runner.temp }}/nupkg/BaseRepository.Template.*.nupkg
-          dotnet new basecrud -n '${{ matrix.name }}' -o ${{ runner.temp }}/out
+          dotnet new install "$(ls nupkg/*.nupkg | head -1)"
+          dotnet new basecrud -n '${{ matrix.name }}' -o out --skipRestore
 
       - name: Verify the scaffolded tree
-        working-directory: ${{ runner.temp }}/out
-        run: bash $GITHUB_WORKSPACE/.github/scripts/verify-scaffolded-tree.sh '${{ matrix.name }}'
+        working-directory: out
+        run: bash ../.github/scripts/verify-scaffolded-tree.sh '${{ matrix.name }}'
 
       - name: Build
-        working-directory: ${{ runner.temp }}/out
+        working-directory: out
         run: dotnet build '${{ matrix.name }}.sln' --configuration Release

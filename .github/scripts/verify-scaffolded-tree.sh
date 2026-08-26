@@ -6,7 +6,7 @@
 #
 # Template-repo only - .template.config/template.json excludes .github/scripts from
 # scaffolded projects.
-set -euo pipefail
+set -uo pipefail
 
 name="${1:?usage: verify-scaffolded-tree.sh <ProjectName>}"
 fail=0
