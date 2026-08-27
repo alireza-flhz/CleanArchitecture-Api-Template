@@ -22,7 +22,7 @@
       "fileRename": "BaseRepository",
       "description": "The project name, made safe to use as a C# namespace. A name that is not a valid identifier (my-api) becomes one (my_api) consistently in file names, project references and namespaces."
     },
-    "Framework": {
+    "framework": {
       "type": "parameter",
       "datatype": "choice",
       "displayName": "Target framework",

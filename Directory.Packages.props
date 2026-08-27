@@ -4,7 +4,7 @@
        block for the framework you chose, so there is exactly one version of each package
        and nothing to reconcile. Asp.Versioning has no 9.x line: its 8.1.1 release ships a
        net8.0 asset, which a net9.0 project consumes normally. -->
-  <!--#if (Framework == "net9.0") -->
+  <!--#if (framework == "net9.0") -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.19" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />

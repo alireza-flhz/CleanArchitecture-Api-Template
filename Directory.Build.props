@@ -16,7 +16,7 @@
       <_RequiredSdkMajor>$(TargetFramework.Substring(3).Split('.')[0])</_RequiredSdkMajor>
     </PropertyGroup>
     <Error Condition="'$(NETCoreSdkVersion)' != '' AND $([MSBuild]::VersionLessThan('$(NETCoreSdkVersion)', '$(_RequiredSdkMajor).0.100'))"
-           Text="This project targets $(TargetFramework), but you are building with the .NET $(NETCoreSdkVersion) SDK. Either install a matching SDK from https://dotnet.microsoft.com/download, or scaffold for the framework you have: dotnet new basecrud -n YourName -f net9.0" />
+           Text="This project targets $(TargetFramework), but you are building with the .NET $(NETCoreSdkVersion) SDK. Either install a matching SDK from https://dotnet.microsoft.com/download, or scaffold for the framework you have: dotnet new basecrud -n YourName --framework net9.0" />
   </Target>
 
 </Project>

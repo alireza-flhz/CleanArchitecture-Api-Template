@@ -13,7 +13,7 @@ validation, OpenAPI docs, structured logging — already wired up and working.
 ## Quick start
 
 **Supports .NET 10 and .NET 9.** It targets .NET 10 by default; on the .NET 9
-SDK pass `-f net9.0` and everything — including the full test suite — works the
+SDK pass `--framework net9.0` and everything — including the full test suite — works the
 same. Check what you have with `dotnet --version`.
 
 Install the template from NuGet, scaffold a project under your own name, and
@@ -49,7 +49,7 @@ builds.
 
 | Option | Values | Default | Meaning |
 | --- | --- | --- | --- |
-| `-f`, `--framework` | `net10.0`, `net9.0` | `net10.0` | Target framework. Pick what your SDK can build. |
+| `--framework` | `net10.0`, `net9.0` | `net10.0` | Target framework. Pick what your SDK can build. |
 | `--skipRestore` | flag | off | Skip the automatic `dotnet restore` after creation. |
 
 `dotnet new basecrud --help` lists these at any time, and scaffolding prints the

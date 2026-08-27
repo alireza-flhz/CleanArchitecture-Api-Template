@@ -117,7 +117,7 @@ jobs:
 
       - name: Scaffold
         shell: bash
-        run: dotnet new basecrud -n ${{ matrix.name }} -o out -f ${{ matrix.framework }} --skipRestore
+        run: dotnet new basecrud -n ${{ matrix.name }} -o out --framework ${{ matrix.framework }} --skipRestore
 
       - name: Resolve the solution name (hyphens become underscores)
         shell: bash
@@ -155,7 +155,7 @@ jobs:
       - name: Scaffolding twice in a row works (with the post-action restore)
         shell: bash
         run: |
-          dotnet new basecrud -n SecondPass -o out2 -f ${{ matrix.framework }}
+          dotnet new basecrud -n SecondPass -o out2 --framework ${{ matrix.framework }}
           test -f out2/SecondPass.sln
 
       - name: Uninstalling the template works
@@ -335,11 +335,11 @@ jobs:
         working-directory: sdk9
         run: dotnet new install "$(ls ../nupkg/*.nupkg | head -1)"
 
-      - name: "-f net9.0 scaffolds, builds and passes the whole suite"
+      - name: "--framework net9.0 scaffolds, builds and passes the whole suite"
         working-directory: sdk9
         run: |
           set -uo pipefail
-          dotnet new basecrud -n Sdk9App -o app -f net9.0
+          dotnet new basecrud -n Sdk9App -o app --framework net9.0
           grep -q "<TargetFramework>net9.0</TargetFramework>" app/Directory.Build.props
           dotnet build app/Sdk9App.sln --configuration Release
           dotnet test app/Sdk9App.sln --no-build --configuration Release
@@ -355,7 +355,7 @@ jobs:
           fi
           echo "--- what the consumer sees ---"
           cat out.log
-          grep -qiE "f net9.0|NETSDK1045" out.log
+          grep -qiE "framework net9.0|NETSDK1045" out.log
 
   cli-help:
     name: dotnet new basecrud --help
@@ -381,11 +381,16 @@ jobs:
         run: |
           set -uo pipefail
           dotnet new basecrud --help | tee help.txt
+          echo "--- template options as the CLI renders them ---"
+          grep -E '^\s+-' help.txt
           grep -q -- "--framework" help.txt
           grep -q "net10.0" help.txt
           grep -q "net9.0" help.txt
           grep -q -- "--skipRestore" help.txt
           grep -qi "clean architecture" help.txt
+          # The option has to actually accept the value, not just appear in help.
+          dotnet new basecrud -n HelpOptionCheck -o optcheck --framework net9.0 --skipRestore
+          grep -q "<TargetFramework>net9.0</TargetFramework>" optcheck/Directory.Build.props
 
       - name: Creating a project prints next steps
         run: |
