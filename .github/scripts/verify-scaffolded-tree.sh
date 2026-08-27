@@ -52,21 +52,31 @@ check $? "no path contains 'BaseRepository'"
 
 # 2. The new name must actually be present - guards against a substitution that
 #    deleted rather than replaced.
-grep -rIqE "$name|$safe_name" . 2>/dev/null
-check $? "the scaffolded name '$name' appears in the tree"
+grep -rIq "$safe_name" . 2>/dev/null
+check $? "the scaffolded name (as '$safe_name') appears in the tree"
 
 # 3. Solution wiring: 8 projects, every one renamed.
-[ -f "$name.sln" ]
-check $? "$name.sln exists"
+sln="$safe_name.sln"
+[ -f "$sln" ]
+check $? "$sln exists"
 
-if [ -f "$name.sln" ]; then
-  projects=$(dotnet sln "$name.sln" list | grep -c '\.csproj' || true)
+if [ -f "$sln" ]; then
+  projects=$(dotnet sln "$sln" list | grep -c '\.csproj' || true)
   [ "$projects" -eq 8 ]
   check $? "solution lists 8 projects (found $projects)"
 
-  unrenamed=$(dotnet sln "$name.sln" list | grep '\.csproj' | grep -vcE "$name|$safe_name" || true)
+  unrenamed=$(dotnet sln "$sln" list | grep '\.csproj' | grep -vc "$safe_name" || true)
   [ "$unrenamed" -eq 0 ]
   check $? "every project in the solution is renamed (found $unrenamed unrenamed)"
+
+  # The whole point of normalising the name: what the solution references must exist on disk.
+  missing=0
+  while read -r proj; do
+    path=$(echo "$proj" | tr '\\' '/')
+    [ -f "$path" ] || { echo "        solution references a missing project: $path"; missing=1; }
+  done < <(dotnet sln "$sln" list | grep '\.csproj')
+  [ "$missing" -eq 0 ]
+  check $? "every project the solution references exists on disk"
 fi
 
 # 4. Template-repo-only workflows must not reach consumers; ci.yml must.
@@ -80,6 +90,9 @@ check $? "no template-only workflow was scaffolded"
 
 [ ! -d .github/scripts ]
 check $? "no template-only scripts were scaffolded"
+
+[ ! -d .template.config ]
+check $? "the template definition itself was not scaffolded"
 
 # 5. No secret and no developer database may ship.
 key=$(grep -o '"SigningKey": *"[^"]*"' src/Api/appsettings.json || true)

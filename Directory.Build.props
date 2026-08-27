@@ -1,4 +1,4 @@
-<Project>
+<Project InitialTargets="ValidateSdkSupportsTargetFramework">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -7,5 +7,16 @@
     <LangVersion>latest</LangVersion>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+
+  <!-- Best-effort: say plainly that the SDK is too old for the framework this project was
+       scaffolded for, instead of leaving the SDK's NETSDK1045 to repeat itself once per
+       project. If this does not get in first, NETSDK1045 still explains it, less kindly. -->
+  <Target Name="ValidateSdkSupportsTargetFramework">
+    <PropertyGroup>
+      <_RequiredSdkMajor>$(TargetFramework.Substring(3).Split('.')[0])</_RequiredSdkMajor>
+    </PropertyGroup>
+    <Error Condition="'$(NETCoreSdkVersion)' != '' AND $([MSBuild]::VersionLessThan('$(NETCoreSdkVersion)', '$(_RequiredSdkMajor).0.100'))"
+           Text="This project targets $(TargetFramework), but you are building with the .NET $(NETCoreSdkVersion) SDK. Either install a matching SDK from https://dotnet.microsoft.com/download, or scaffold for the framework you have: dotnet new basecrud -n YourName -f net9.0" />
+  </Target>
 
 </Project>

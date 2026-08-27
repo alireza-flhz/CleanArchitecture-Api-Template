@@ -74,26 +74,33 @@ jobs:
           path: ${{ runner.temp }}/nupkg/*.nupkg
 
   scaffold:
-    name: Scaffold (${{ matrix.name }} on ${{ matrix.os }})
+    name: Scaffold (${{ matrix.name }}, ${{ matrix.framework }}, ${{ matrix.os }})
     needs: package
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # A dotted name, a single-word name, and a name that contains the template's own
-          # words - the last one would break a naive string replacement.
-          - { os: ubuntu-latest, name: Acme.Store }
-          - { os: ubuntu-latest, name: Shop }
-          - { os: ubuntu-latest, name: BaseRepositoryClone }
+          # A dotted name, a single-word name, a name containing the template's own words
+          # (which breaks a naive string replacement), and a hyphenated one that is not a
+          # valid C# identifier.
+          - { os: ubuntu-latest, name: Acme.Store, framework: net10.0 }
+          - { os: ubuntu-latest, name: Shop, framework: net10.0 }
+          - { os: ubuntu-latest, name: BaseRepositoryClone, framework: net10.0 }
+          - { os: ubuntu-latest, name: my-api, framework: net10.0 }
+          # Both supported frameworks must build and pass the same suite.
+          - { os: ubuntu-latest, name: Acme.Store, framework: net9.0 }
+          - { os: ubuntu-latest, name: my-api, framework: net9.0 }
           # The template is cross-platform or it is not; SQLite and path handling differ.
-          - { os: windows-latest, name: Acme.Store }
-          - { os: macos-latest, name: Acme.Store }
+          - { os: windows-latest, name: Acme.Store, framework: net10.0 }
+          - { os: macos-latest, name: Acme.Store, framework: net9.0 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: |
+            9.0.x
+            10.0.x
 
       - uses: actions/download-artifact@v4
         with:
@@ -110,7 +117,22 @@ jobs:
 
       - name: Scaffold
         shell: bash
-        run: dotnet new basecrud -n ${{ matrix.name }} -o out --skipRestore
+        run: dotnet new basecrud -n ${{ matrix.name }} -o out -f ${{ matrix.framework }} --skipRestore
+
+      - name: Resolve the solution name (hyphens become underscores)
+        shell: bash
+        working-directory: out
+        run: echo "SLN=$(ls *.sln)" >> "$GITHUB_ENV"
+
+      - name: The chosen framework is what got generated
+        shell: bash
+        working-directory: out
+        run: |
+          set -uo pipefail
+          grep -q "<TargetFramework>${{ matrix.framework }}</TargetFramework>" Directory.Build.props
+          # Exactly one version per package - the other framework's block must be gone.
+          dupes=$(grep -oP '(?<=PackageVersion Include=")[^"]+' Directory.Packages.props | sort | uniq -d)
+          if [ -n "$dupes" ]; then echo "duplicate PackageVersion entries:"; echo "$dupes"; exit 1; fi
 
       - name: Verify the scaffolded tree
         shell: bash
@@ -122,18 +144,18 @@ jobs:
         working-directory: out
         run: |
           set -uo pipefail
-          dotnet build ${{ matrix.name }}.sln --configuration Release 2>&1 | tee build.log
+          dotnet build "$SLN" --configuration Release 2>&1 | tee build.log
           grep -q "0 Warning(s)" build.log
 
       - name: Test
         shell: bash
         working-directory: out
-        run: dotnet test ${{ matrix.name }}.sln --no-build --configuration Release
+        run: dotnet test "$SLN" --no-build --configuration Release
 
       - name: Scaffolding twice in a row works (with the post-action restore)
         shell: bash
         run: |
-          dotnet new basecrud -n SecondPass -o out2
+          dotnet new basecrud -n SecondPass -o out2 -f ${{ matrix.framework }}
           test -f out2/SecondPass.sln
 
       - name: Uninstalling the template works
@@ -281,10 +303,10 @@ jobs:
 
       - name: Build
         working-directory: out
-        run: dotnet build '${{ matrix.name }}.sln' --configuration Release
+        run: dotnet build "$(ls *.sln)" --configuration Release
 
-  older-sdk-refusal:
-    name: Refuses an SDK that cannot build it
+  sdk9-only:
+    name: On the .NET 9 SDK alone
     needs: package
     runs-on: ubuntu-latest
     steps:
@@ -298,11 +320,9 @@ jobs:
           name: template-nupkg
           path: nupkg
 
-      # Reproduces what a consumer on an older SDK hits. Without the sdk-version
-      # constraint in template.json, scaffolding "succeeds" and then the post-action
-      # restore dies with a wall of NETSDK1045 on a half-created project. It must
-      # refuse up front instead, leaving nothing behind.
-      - name: Pin this directory to the .NET 9 SDK
+      # global.json keeps every dotnet command in here on the 9 SDK even though the runner
+      # also has 10 - this is the consumer who has not upgraded.
+      - name: Pin to the .NET 9 SDK
         run: |
           set -uo pipefail
           mkdir -p sdk9
@@ -311,28 +331,34 @@ jobs:
           JSON
           cd sdk9 && dotnet --version
 
-      - name: Installing the template still works
+      - name: Install the template
         working-directory: sdk9
         run: dotnet new install "$(ls ../nupkg/*.nupkg | head -1)"
 
-      - name: Scaffolding is refused, and nothing is left behind
+      - name: "-f net9.0 scaffolds, builds and passes the whole suite"
         working-directory: sdk9
         run: |
           set -uo pipefail
-          if dotnet new basecrud -n Sdk9Test -o proj > out.log 2>&1; then
-            echo "Expected the template to refuse to run on the .NET 9 SDK, but it scaffolded:"
-            cat out.log
-            exit 1
+          dotnet new basecrud -n Sdk9App -o app -f net9.0
+          grep -q "<TargetFramework>net9.0</TargetFramework>" app/Directory.Build.props
+          dotnet build app/Sdk9App.sln --configuration Release
+          dotnet test app/Sdk9App.sln --no-build --configuration Release
+
+      # Taking the net10.0 default on this SDK cannot work. It must fail, and the output has
+      # to tell the consumer what to do instead.
+      - name: The net10.0 default fails with actionable output
+        working-directory: sdk9
+        run: |
+          set -uo pipefail
+          if dotnet new basecrud -n DefaultOnSdk9 -o dflt > out.log 2>&1; then
+            echo "Expected the net10.0 default to fail on the .NET 9 SDK."; exit 1
           fi
           echo "--- what the consumer sees ---"
           cat out.log
-          # The refusal must be about the SDK, not an incidental failure.
-          grep -qiE "sdk|constraint" out.log
-          # And it must not leave a broken project on disk.
-          [ ! -f proj/Sdk9Test.sln ]
+          grep -qiE "f net9.0|NETSDK1045" out.log
 
-  hyphenated-name-limitation:
-    name: Known limitation (hyphenated name)
+  cli-help:
+    name: dotnet new basecrud --help
     needs: package
     runs-on: ubuntu-latest
     steps:
@@ -346,35 +372,25 @@ jobs:
           name: template-nupkg
           path: nupkg
 
-      - name: Scaffold 'my-api'
-        run: |
-          dotnet new install "$(ls nupkg/*.nupkg | head -1)"
-          dotnet new basecrud -n my-api -o out --skipRestore
+      - name: Install the template
+        run: dotnet new install "$(ls nupkg/*.nupkg | head -1)"
 
-      # A name that is not a valid C# identifier scaffolds but cannot build: templating
-      # renames files with the raw name and rewrites solution contents with the safe one.
-      # Asserted rather than left as a permanently red job, so the suite stays meaningfully
-      # green - and so a future SDK that fixes this fails here and tells us to drop the
-      # caveat from the README.
-      - name: The documented mismatch is present
-        working-directory: out
+      # The command line is where most people meet this template, so its help has to carry
+      # the options and what they do - not just a bare template name.
+      - name: Help documents the options
         run: |
           set -uo pipefail
-          echo "--- files on disk ---"
-          find . -name '*.csproj' | sort
-          echo "--- solution references ---"
-          grep -o '[^"]*\.csproj' my-api.sln | sort -u
+          dotnet new basecrud --help | tee help.txt
+          grep -q -- "--framework" help.txt
+          grep -q "net10.0" help.txt
+          grep -q "net9.0" help.txt
+          grep -q -- "--skipRestore" help.txt
+          grep -qi "clean architecture" help.txt
 
-          test -f src/Domain/my-api.Domain.csproj
-          grep -q 'my_api\.Domain\.csproj' my-api.sln
-
-      - name: And the build fails because of it
-        working-directory: out
+      - name: Creating a project prints next steps
         run: |
           set -uo pipefail
-          if dotnet build my-api.sln --configuration Release > build.log 2>&1; then
-            echo "Hyphenated names now build - the README caveat can be removed."
-            exit 1
-          fi
-          grep -q "MSB3202" build.log
-          echo "Confirmed: MSB3202, as documented in the README."
+          dotnet new basecrud -n HelpDemo -o demo --skipRestore | tee create.txt
+          grep -qi "user-secrets set Jwt:SigningKey" create.txt
+          grep -qi "dotnet run --project src/Api" create.txt
+          grep -qi "dotnet test" create.txt

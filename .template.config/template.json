@@ -5,19 +5,48 @@
   "identity": "BaseRepository.CleanArchitecture.Api",
   "name": "Clean Architecture API (generic CQRS, EF Core, JWT auth)",
   "shortName": "basecrud",
-  "sourceName": "BaseRepository",
+  "description": "A layered Clean Architecture Web API: Domain/Application/Infrastructure/Api projects with dependencies pointing inward, a zero-dependency in-process CQRS mediator, generic CRUD over EF Core, register/login with JWT and BCrypt, international phone validation, API versioning, OpenAPI with Scalar UI, structured logging, and a test project per layer. Adding an entity takes a DTO, one AddCrudHandlers call, and a controller.",
   "preferNameDirectory": true,
   "constraints": {
     "sdk": {
       "type": "sdk-version",
-      "args": "[10.0.100,)"
+      "args": "[9.0.100,)"
     }
   },
   "symbols": {
+    "safeName": {
+      "type": "derived",
+      "valueSource": "name",
+      "valueTransform": "safe_namespace",
+      "replaces": "BaseRepository",
+      "fileRename": "BaseRepository",
+      "description": "The project name, made safe to use as a C# namespace. A name that is not a valid identifier (my-api) becomes one (my_api) consistently in file names, project references and namespaces."
+    },
+    "Framework": {
+      "type": "parameter",
+      "datatype": "choice",
+      "displayName": "Target framework",
+      "description": "Target framework for the generated projects. Choose the one your installed .NET SDK can build - 'dotnet --version' tells you which you have.",
+      "defaultValue": "net10.0",
+      "replaces": "net10.0",
+      "choices": [
+        {
+          "choice": "net10.0",
+          "displayName": ".NET 10.0",
+          "description": "Requires the .NET 10 SDK."
+        },
+        {
+          "choice": "net9.0",
+          "displayName": ".NET 9.0",
+          "description": "Requires the .NET 9 SDK or newer."
+        }
+      ]
+    },
     "skipRestore": {
       "type": "parameter",
       "datatype": "bool",
-      "description": "If specified, skips the automatic restore of the project on create.",
+      "displayName": "Skip restore",
+      "description": "Skip the automatic 'dotnet restore' that normally runs after the project is created.",
       "defaultValue": "false"
     }
   },
@@ -37,7 +66,7 @@
             ".github/workflows/publish-template.yml",
             ".github/workflows/template-verify.yml",
             ".github/scripts/**",
-            ".template.config/localize/**",
+            ".template.config/**",
             "*.nupkg"
           ]
         }
@@ -50,6 +79,16 @@
       "description": "Restore NuGet packages required by this project.",
       "manualInstructions": [{ "text": "Run 'dotnet restore'" }],
       "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    },
+    {
+      "description": "Next steps",
+      "actionId": "AC1156F7-BB77-4DB8-B28F-24EEBCCA1E5C",
+      "manualInstructions": [
+        {
+          "text": "1) Set a JWT signing key (at least 32 bytes) - protected endpoints stay 401 until you do:\n     dotnet user-secrets init --project src/Api\n     dotnet user-secrets set Jwt:SigningKey \"<at least 32 bytes>\" --project src/Api\n\n2) Run it:\n     dotnet run --project src/Api\n   Then open http://localhost:5000/scalar/v1 for interactive API docs.\n   GET /health and GET / work with no configuration at all.\n\n3) Register a user to get a token:\n     curl -X POST http://localhost:5000/api/v1/auth/register -H \"Content-Type: application/json\" -d \"{\\\"email\\\":\\\"me@example.com\\\",\\\"password\\\":\\\"correct-horse-battery\\\"}\"\n\n4) Run the tests:\n     dotnet test\n\n5) Add your own entity: create it in src/Domain, add a DTO in src/Application,\n   call services.AddCrudHandlers<YourEntity, int, YourDto>(), and derive a\n   controller from BaseCrudController. Then delete the TodoItem sample.\n\nFull guide: https://github.com/alireza-flhz/CleanArchitecture-Api-Template"
+        }
+      ],
       "continueOnError": true
     }
   ]
