@@ -344,18 +344,24 @@ jobs:
           dotnet build app/Sdk9App.sln --configuration Release
           dotnet test app/Sdk9App.sln --no-build --configuration Release
 
-      # Taking the net10.0 default on this SDK cannot work. It must fail, and the output has
-      # to tell the consumer what to do instead.
-      - name: The net10.0 default fails with actionable output
+      # Taking the net10.0 default on this SDK cannot restore. dotnet new still reports
+      # success - the restore post-action is continueOnError - so what actually matters is
+      # that the consumer is told, in the output, how to get a project that works.
+      - name: The net10.0 default explains itself on this SDK
         working-directory: sdk9
         run: |
           set -uo pipefail
-          if dotnet new basecrud -n DefaultOnSdk9 -o dflt > out.log 2>&1; then
-            echo "Expected the net10.0 default to fail on the .NET 9 SDK."; exit 1
-          fi
+          dotnet new basecrud -n DefaultOnSdk9 -o dflt > out.log 2>&1 || true
           echo "--- what the consumer sees ---"
           cat out.log
           grep -qiE "framework net9.0|NETSDK1045" out.log
+          # And building it must not be silently broken either.
+          if dotnet build dflt/DefaultOnSdk9.sln --configuration Release > build.log 2>&1; then
+            echo "A net10.0 project unexpectedly built on the .NET 9 SDK."; exit 1
+          fi
+          echo "--- and when they try to build ---"
+          tail -30 build.log
+          grep -qiE "framework net9.0|NETSDK1045" build.log
 
   cli-help:
     name: dotnet new basecrud --help
