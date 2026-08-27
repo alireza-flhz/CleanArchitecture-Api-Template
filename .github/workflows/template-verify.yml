@@ -131,7 +131,7 @@ jobs:
           set -uo pipefail
           grep -q "<TargetFramework>${{ matrix.framework }}</TargetFramework>" Directory.Build.props
           # Exactly one version per package - the other framework's block must be gone.
-          dupes=$(grep -oP '(?<=PackageVersion Include=")[^"]+' Directory.Packages.props | sort | uniq -d)
+          dupes=$(sed -n 's/.*PackageVersion Include="\([^"]*\)".*/\1/p' Directory.Packages.props | sort | uniq -d)
           if [ -n "$dupes" ]; then echo "duplicate PackageVersion entries:"; echo "$dupes"; exit 1; fi
 
       - name: Verify the scaffolded tree
