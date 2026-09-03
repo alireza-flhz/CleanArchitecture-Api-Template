@@ -20,7 +20,7 @@ Install the template from NuGet, scaffold a project under your own name, and
 run it:
 
 ```bash
-dotnet new install BaseRepository.Template::1.0.0-preview.1
+dotnet new install BaseRepository.Template::1.0.0-preview.2
 dotnet new basecrud -n Acme.Store
 cd Acme.Store
 dotnet run --project src/Api
