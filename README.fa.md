@@ -15,12 +15,16 @@
 
 ## شروع سریع
 
-قالب را نصب کنید، یک پروژه با نام دلخواه خودتان بسازید و اجرا کنید:
+**هم از .NET 10 پشتیبانی می‌کند هم .NET 9.** پیش‌فرض روی .NET 10 است؛ اگر
+SDK ۹ دارید کافی است `--framework net9.0` بدهید و همه‌چیز — از جمله کل سوییت تست —
+دقیقاً همان‌طور کار می‌کند. با `dotnet --version` ببینید کدام را دارید.
+
+قالب را از NuGet نصب کنید، یک پروژه با نام دلخواه خودتان بسازید و اجرا کنید:
 
 <div dir="ltr">
 
 ```bash
-dotnet new install <path-to-this-repo-or-its-.nupkg>
+dotnet new install BaseRepository.Template::1.0.0-preview.2
 dotnet new basecrud -n Acme.Store
 cd Acme.Store
 dotnet run --project src/Api
@@ -28,15 +32,42 @@ dotnet run --project src/Api
 
 </div>
 
+<div dir="ltr">
+
+[![NuGet](https://img.shields.io/nuget/vpre/BaseRepository.Template.svg)](https://www.nuget.org/packages/BaseRepository.Template)
+
+</div>
+
+این پکیج فعلاً prerelease است، برای همین شمارهٔ نسخه صریح نوشته شده — اگر
+`dotnet new install BaseRepository.Template` را بدون نسخه بزنید فقط نسخه‌های
+پایدار را پیدا می‌کند. می‌توانید از روی کلون محلی یا یک `.nupkg` که خودتان
+ساخته‌اید هم نصب کنید:
+
+<div dir="ltr">
+
+```bash
+dotnet new install <path-to-this-repo-or-its-.nupkg>
+```
+
+</div>
+
 همه چیز — namespaceها، فایل‌های پروژه و خود solution — به نامی که با `-n`
 می‌دهید تغییر نام پیدا می‌کند. نیازی به search & replace دستی نیست.
 
-> **اسمی انتخاب کنید که شناسهٔ معتبر C# باشد.** نقطه مشکلی ندارد
-> (`Acme.Store`، `Contoso.Widgets.Api`) و رقم هم بعد از کاراکتر اول مجاز است.
-> اسمی که خط تیره داشته باشد (`my-api`) ساخته می‌شود ولی **build نمی‌شود**:
-> فایل solution به `my_api.*.csproj` ارجاع می‌دهد در حالی که فایل‌های پروژه روی
-> دیسک با اسم خام نام‌گذاری شده‌اند، و `dotnet build` با خطای MSB3202 شکست
-> می‌خورد. به‌جایش از `MyApi` یا `My.Api` استفاده کنید.
+هر اسمی کار می‌کند. اسمی که شناسهٔ معتبر C# نباشد همه‌جا به یک شکل نرمال
+می‌شود، پس `-n my-api` یک پوشهٔ `my-api` می‌دهد که داخلش `my_api.sln` و
+`my_api.*.csproj` با namespaceهای هماهنگ است — یکدست، و build می‌شود.
+
+### گزینه‌ها
+
+| گزینه | مقادیر | پیش‌فرض | معنی |
+| --- | --- | --- | --- |
+| `--framework` | `net10.0`، `net9.0` | `net10.0` | فریم‌ورک هدف. آن را انتخاب کنید که SDK شما بتواند بسازد. |
+| `--skipRestore` | فلگ | خاموش | از `dotnet restore` خودکار بعد از ساخت صرف‌نظر کن. |
+
+`dotnet new basecrud --help` هر وقت خواستید این‌ها را نشان می‌دهد، و بعد از
+ساخته شدن پروژه هم قدم‌های بعدی (کلید امضا، اجرا، تست، اضافه کردن entity خودتان)
+چاپ می‌شود.
 
 می‌توانید همین مخزن را هم مستقیم clone و اجرا کنید:
 

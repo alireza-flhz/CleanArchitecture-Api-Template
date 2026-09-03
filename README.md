@@ -12,24 +12,48 @@ validation, OpenAPI docs, structured logging — already wired up and working.
 
 ## Quick start
 
-Install the template, scaffold a project under your own name, and run it:
+**Supports .NET 10 and .NET 9.** It targets .NET 10 by default; on the .NET 9
+SDK pass `--framework net9.0` and everything — including the full test suite — works the
+same. Check what you have with `dotnet --version`.
+
+Install the template from NuGet, scaffold a project under your own name, and
+run it:
 
 ```bash
-dotnet new install <path-to-this-repo-or-its-.nupkg>
+dotnet new install BaseRepository.Template::1.0.0-preview.2
 dotnet new basecrud -n Acme.Store
 cd Acme.Store
 dotnet run --project src/Api
 ```
 
+[![NuGet](https://img.shields.io/nuget/vpre/BaseRepository.Template.svg)](https://www.nuget.org/packages/BaseRepository.Template)
+
+The package is currently a prerelease, so the version is pinned explicitly above
+— `dotnet new install BaseRepository.Template` without a version only resolves
+stable releases. You can also install from a local clone or a `.nupkg` you built
+yourself:
+
+```bash
+dotnet new install <path-to-this-repo-or-its-.nupkg>
+```
+
 Everything — namespaces, project files, the solution — is renamed to the name
 you pass to `-n`. No find-and-replace needed.
 
-> **Pick a name that is a valid C# identifier.** Dots are fine (`Acme.Store`,
-> `Contoso.Widgets.Api`), and so are digits after the first character. A name
-> containing a hyphen (`my-api`) scaffolds but will **not** build: the solution
-> file ends up referencing `my_api.*.csproj` while the project files on disk are
-> named after the raw name, so `dotnet build` fails with MSB3202. Use
-> `MyApi` or `My.Api` instead.
+Any name works. One that is not a valid C# identifier is normalised the same
+way everywhere, so `-n my-api` gives you a `my-api` folder containing
+`my_api.sln` and `my_api.*.csproj` with matching namespaces — consistent, and it
+builds.
+
+### Options
+
+| Option | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `--framework` | `net10.0`, `net9.0` | `net10.0` | Target framework. Pick what your SDK can build. |
+| `--skipRestore` | flag | off | Skip the automatic `dotnet restore` after creation. |
+
+`dotnet new basecrud --help` lists these at any time, and scaffolding prints the
+next steps (signing key, run, test, add your own entity).
 
 You can also just clone this repo and run it directly:
 

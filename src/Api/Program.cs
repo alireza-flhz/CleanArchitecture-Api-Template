@@ -59,8 +59,15 @@ builder.Services
     {
         options.GroupNameFormat = "'v'VVV";
         options.SubstituteApiVersionInUrl = true;
-    })
-    .AddOpenApi();
+    });
+
+// One OpenAPI document per API version, served at /openapi/{name}.json. ApiExplorer's
+// GroupNameFormat above stamps each endpoint with "v1", and the document named "v1" picks
+// up exactly those endpoints. Registered by hand rather than through
+// Asp.Versioning.OpenApi's WithDocumentPerVersion(), which ships no asset for anything
+// below the newest framework - this keeps one code path everywhere. Adding v2 later means
+// adding AddOpenApi("v2") here.
+builder.Services.AddOpenApi("v1");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -111,7 +118,7 @@ app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Ok(new { service = "BaseRepository.Api", status = "running" }));
 app.MapControllers();
 
-app.MapOpenApi().WithDocumentPerVersion();
+app.MapOpenApi();
 app.MapScalarApiReference();
 
 app.Run();
